@@ -1,4 +1,4 @@
-package com.example.app.data.entity
+package com.example.app.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -8,12 +8,22 @@ data class TravelRecord(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    val placeName: String,
+    // 서울, 경기, 부산처럼 시·도 단위
     val region: String,
+
+    // 예: 2026-07-22
     val visitDate: String,
+
+    // 여행 메모
     val memo: String = "",
-    val rating: Float = 0f,
+
+    // 사진 한 장의 URI
+    val imageUri: String? = null,
+
+    // 지도 위치
     val latitude: Double? = null,
     val longitude: Double? = null,
+
+    // 기록 생성 시각
     val createdAt: Long = System.currentTimeMillis()
 )

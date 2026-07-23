@@ -5,7 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
-import com.example.app.data.entity.TravelRecord
+import com.example.app.entity.TravelRecord
 
 @Dao
 interface TravelRecordDao {
