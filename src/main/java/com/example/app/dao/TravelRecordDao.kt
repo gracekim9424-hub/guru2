@@ -16,6 +16,9 @@ interface TravelRecordDao {
     @Query("SELECT * FROM travel_records ORDER BY createdAt DESC")
     suspend fun getAllRecords(): List<TravelRecord>
 
+    @Query("SELECT * FROM travel_records WHERE region = :region ORDER BY createdAt DESC")
+    suspend fun getRecordsByRegion(region: String): List<TravelRecord>
+
     @Query("SELECT * FROM travel_records WHERE id = :recordId")
     suspend fun getRecordById(recordId: Long): TravelRecord?
 
