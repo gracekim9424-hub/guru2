@@ -11,7 +11,7 @@ import com.damyeoom.app.entity.ChecklistItem
 import com.damyeoom.app.entity.PlaceEntity
 import com.damyeoom.app.entity.TravelRecord
 //import com.example.app.data.dao.ChecklistDao
-//import com.example.app.data.dao.PlaceDao
+//import com.example.app.data.dao.PlaceD ao
 //import com.example.app.data.dao.TravelRecordDao
 //import com.example.app.entity.ChecklistItem
 //import com.example.app.entity.PlaceEntity
