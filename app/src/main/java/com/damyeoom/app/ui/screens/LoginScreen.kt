@@ -21,7 +21,7 @@ import com.damyeoom.app.ui.theme.*
 
 @Composable
 fun LoginScreen(
-    onSignUpClick: () -> Unit
+    onSignUpClick: (String, String) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -98,7 +98,9 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = onSignUpClick,
+                onClick = {
+                    onSignUpClick(email, password)
+                },
                 enabled = isFormFilled,
                 modifier = Modifier
                     .fillMaxWidth()

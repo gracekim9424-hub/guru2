@@ -8,6 +8,8 @@ data class TravelRecord(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
+    // 이 여행 기록을 작성한 사용자
+    val userId: Int,
     // 서울, 경기, 부산처럼 시·도 단위
     val region: String,
 

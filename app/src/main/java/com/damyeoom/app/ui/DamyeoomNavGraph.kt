@@ -10,12 +10,16 @@ import com.damyeoom.app.ui.screens.AddTravelScreen
 import com.damyeoom.app.ui.screens.HomeScreen
 import com.damyeoom.app.ui.screens.LoginScreen
 import com.damyeoom.app.ui.screens.PlaceDetailScreen
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.damyeoom.app.entity.User
 
 @Composable
 fun DamyeoomNavGraph(
     db: AppDatabase,
     navController: NavHostController = rememberNavController()
 ) {
+    val scope = rememberCoroutineScope()
     NavHost(
         navController = navController,
         startDestination = Routes.LOGIN
@@ -23,10 +27,27 @@ fun DamyeoomNavGraph(
 
         composable(Routes.LOGIN) {
             LoginScreen(
-                onSignUpClick = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) {
-                            inclusive = true
+                onSignUpClick = { email, password ->
+
+                    scope.launch {
+
+                        val existUser =
+                            db.userDao().getUserByEmail(email)
+
+                        if (existUser == null) {
+
+                            db.userDao().insert(
+                                User(
+                                    email = email,
+                                    password = password
+                                )
+                            )
+                        }
+
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.LOGIN) {
+                                inclusive = true
+                            }
                         }
                     }
                 }
