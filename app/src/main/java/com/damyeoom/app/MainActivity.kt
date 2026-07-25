@@ -9,6 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.damyeoom.app.ui.DamyeoomNavGraph
 import com.damyeoom.app.ui.theme.DamyeoomTheme
+import com.damyeoom.app.data.database.AppDatabase
 
 
 class MainActivity : ComponentActivity() {
