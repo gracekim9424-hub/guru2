@@ -1,4 +1,4 @@
-package com.example.app.entity
+package com.damyeoom.app.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

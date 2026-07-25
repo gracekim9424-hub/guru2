@@ -1,7 +1,8 @@
-package com.example.app.data.dao
+package com.damyeoom.app.dao
 
 import androidx.room.*
-import com.example.app.entity.ChecklistItem
+import com.damyeoom.app.entity.ChecklistItem
+//import com.example.app.entity.ChecklistItem
 
 @Dao
 interface ChecklistDao {

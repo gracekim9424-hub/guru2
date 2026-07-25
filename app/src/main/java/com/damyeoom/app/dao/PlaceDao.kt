@@ -1,10 +1,11 @@
-package com.example.app.data.dao
+package com.damyeoom.app.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.example.app.entity.PlaceEntity
+import com.damyeoom.app.entity.PlaceEntity
+//import com.example.app.entity.PlaceEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

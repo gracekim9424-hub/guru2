@@ -1,15 +1,21 @@
-package com.example.app.data.database
+package com.damyeoom.app.data.database
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.app.data.dao.ChecklistDao
-import com.example.app.data.dao.PlaceDao
-import com.example.app.data.dao.TravelRecordDao
-import com.example.app.entity.ChecklistItem
-import com.example.app.entity.PlaceEntity
-import com.example.app.entity.TravelRecord
+import com.damyeoom.app.dao.ChecklistDao
+import com.damyeoom.app.dao.PlaceDao
+import com.damyeoom.app.dao.TravelRecordDao
+import com.damyeoom.app.entity.ChecklistItem
+import com.damyeoom.app.entity.PlaceEntity
+import com.damyeoom.app.entity.TravelRecord
+//import com.example.app.data.dao.ChecklistDao
+//import com.example.app.data.dao.PlaceDao
+//import com.example.app.data.dao.TravelRecordDao
+//import com.example.app.entity.ChecklistItem
+//import com.example.app.entity.PlaceEntity
+//import com.example.app.entity.TravelRecord
 
 @Database(
     entities = [

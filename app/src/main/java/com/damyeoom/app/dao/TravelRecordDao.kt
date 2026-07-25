@@ -1,11 +1,12 @@
-package com.example.app.data.dao
+package com.damyeoom.app.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
-import com.example.app.entity.TravelRecord
+import com.damyeoom.app.entity.TravelRecord
+//import com.example.app.entity.TravelRecord
 
 @Dao
 interface TravelRecordDao {

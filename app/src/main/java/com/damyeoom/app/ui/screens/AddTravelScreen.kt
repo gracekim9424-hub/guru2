@@ -17,7 +17,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,66 +35,122 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.damyeoom.app.data.Friend
-import com.damyeoom.app.data.database.AppDatabase          // ← 추가
+import com.damyeoom.app.data.database.AppDatabase
 import com.damyeoom.app.data.sampleAddedFriends
 import com.damyeoom.app.data.sampleSearchFriends
-import com.damyeoom.app.entity.TravelRecord                 // ← 추가 (실제 패키지 경로 확인 필요)
+import com.damyeoom.app.entity.TravelRecord
 import com.damyeoom.app.ui.theme.*
-import kotlinx.coroutines.launch                             // ← 추가
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
+/**
+ * 카메라로 촬영할 사진이 임시 저장될 URI를 생성한다.
+ */
 private fun createCameraImageUri(context: Context): Uri {
-    val imagesDir = File(context.cacheDir, "images").apply { mkdirs() }
-    val file = File(imagesDir, "IMG_${System.currentTimeMillis()}.jpg")
-    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    val imagesDir = File(context.cacheDir, "images").apply {
+        mkdirs()
+    }
+
+    val imageFile = File(
+        imagesDir,
+        "IMG_${System.currentTimeMillis()}.jpg"
+    )
+
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        imageFile
+    )
 }
 
 @Composable
 fun AddTravelScreen(
     placeName: String,
-    db: AppDatabase,                                         // ← 추가된 파라미터
-    onSelectOnMap: () -> Unit = {},
+    db: AppDatabase,
+    onSelectOnMap: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()                      // ← 추가
+    val scope = rememberCoroutineScope()
 
-    var friends by remember { mutableStateOf(sampleAddedFriends) }
-    var showFriendPicker by remember { mutableStateOf(false) }
+    var friends by remember {
+        mutableStateOf(sampleAddedFriends)
+    }
 
-    val photos = remember { mutableStateListOf<Uri>() }
-    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var showFriendPicker by remember {
+        mutableStateOf(false)
+    }
 
-    var memoInput by remember { mutableStateOf("") }
+    val photos = remember {
+        mutableStateListOf<Uri>()
+    }
 
-    // 기존 sampleTravelPosts 기반 posts 리스트 → 실제 DB 조회로 교체
-    // ⚠ TravelRecordDao에 placeName으로 조회하는 메서드가 없다면
-    //    getAll() 등 현재 있는 메서드명으로 바꿔주세요.
-    val travelRecords by db.travelRecordDao().getAllByPlace(placeName)
-        .collectAsState(initial = emptyList())
+    var pendingCameraUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
 
+    var memoInput by remember {
+        mutableStateOf("")
+    }
+
+    /*
+     * DAO의 getRecordsByRegion()은 Flow가 아니라
+     * suspend 함수이므로 collectAsState()를 사용하지 않는다.
+     */
+    var travelRecords by remember {
+        mutableStateOf<List<TravelRecord>>(emptyList())
+    }
+
+    /*
+     * 화면이 열리거나 placeName이 변경될 때
+     * 해당 지역의 여행 기록을 불러온다.
+     */
+    LaunchedEffect(placeName) {
+        travelRecords = db
+            .travelRecordDao()
+            .getRecordsByRegion(placeName)
+    }
+
+    /*
+     * 카메라 촬영 결과 처리
+     */
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success && pendingCameraUri != null) {
-            photos.add(pendingCameraUri!!)
+
+        val savedUri = pendingCameraUri
+
+        if (success && savedUri != null) {
+            photos.add(savedUri)
         }
+
+        pendingCameraUri = null
     }
 
+    /*
+     * 카메라 권한 요청
+     */
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
+
         if (granted) {
             val uri = createCameraImageUri(context)
+
             pendingCameraUri = uri
             cameraLauncher.launch(uri)
         }
     }
 
+    /*
+     * 갤러리에서 여러 장의 사진 선택
+     */
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia()
     ) { uris ->
+
         photos.addAll(uris)
     }
 
@@ -102,65 +161,133 @@ fun AddTravelScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
 
+        /*
+         * 선택된 장소 표시 영역
+         */
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Place, contentDescription = null, tint = PinRed)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(text = placeName, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Place,
+                    contentDescription = null,
+                    tint = PinRed
+                )
+
+                Spacer(
+                    modifier = Modifier.width(4.dp)
+                )
+
+                Text(
+                    text = placeName,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
             }
+
             OutlinedButton(
                 onClick = onSelectOnMap,
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Text("지도에서 선택하기", fontSize = 13.sp)
+                Text(
+                    text = "지도에서 선택하기",
+                    fontSize = 13.sp
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
 
-        Text("여행 사진을 추가해 보세요.", fontSize = 15.sp, color = TextPrimary)
-        Spacer(modifier = Modifier.height(12.dp))
+        /*
+         * 사진 추가 영역
+         */
+        Text(
+            text = "여행 사진을 추가해 보세요.",
+            fontSize = 15.sp,
+            color = TextPrimary
+        )
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(ChipWhite)
                     .clickable {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        cameraPermissionLauncher.launch(
+                            Manifest.permission.CAMERA
+                        )
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.CameraAlt, contentDescription = "사진 촬영", tint = TextPrimary)
+                Icon(
+                    imageVector = Icons.Filled.CameraAlt,
+                    contentDescription = "사진 촬영",
+                    tint = TextPrimary
+                )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+
+            Spacer(
+                modifier = Modifier.width(12.dp)
+            )
+
             Button(
                 onClick = {
                     galleryLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
                     )
                 },
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp),
                 shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ButtonDark)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ButtonDark
+                )
             ) {
-                Text("앨범에서 추가", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = "앨범에서 추가",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
 
+        /*
+         * 선택한 사진 미리보기
+         */
         if (photos.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(photos) { uri ->
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(
+                    items = photos,
+                    key = { uri -> uri.toString() }
+                ) { uri ->
+
                     Box(
                         modifier = Modifier
                             .size(88.dp)
@@ -172,19 +299,24 @@ fun AddTravelScreen(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
+
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(4.dp)
                                 .size(20.dp)
                                 .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.6f))
-                                .clickable { photos.remove(uri) },
+                                .background(
+                                    Color.Black.copy(alpha = 0.6f)
+                                )
+                                .clickable {
+                                    photos.remove(uri)
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.Filled.Close,
-                                contentDescription = "삭제",
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "사진 삭제",
                                 tint = Color.White,
                                 modifier = Modifier.size(12.dp)
                             )
@@ -194,47 +326,101 @@ fun AddTravelScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
 
-        Text("누구랑 다녀왔나요?", fontSize = 15.sp, color = TextPrimary)
-        Spacer(modifier = Modifier.height(12.dp))
+        /*
+         * 친구 선택 영역
+         */
+        Text(
+            text = "누구랑 다녀왔나요?",
+            fontSize = 15.sp,
+            color = TextPrimary
+        )
 
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(friends) { friend ->
-                FriendAvatar(friend = friend)
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(
+                items = friends,
+                key = { friend -> friend.name }
+            ) { friend ->
+
+                FriendAvatar(
+                    friend = friend
+                )
             }
+
             item {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
                         .background(ButtonDark)
-                        .clickable { showFriendPicker = !showFriendPicker },
+                        .clickable {
+                            showFriendPicker = !showFriendPicker
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "친구 추가", tint = Color.White)
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "친구 추가",
+                        tint = Color.White
+                    )
                 }
             }
         }
 
         if (showFriendPicker) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
+
             FriendPickerDropdown(
-                candidates = sampleSearchFriends.filter { c -> friends.none { it.name == c.name } },
-                onAdd = { picked -> friends = friends + picked },
-                onDismiss = { showFriendPicker = false }
+                candidates = sampleSearchFriends.filter { candidate ->
+                    friends.none { friend ->
+                        friend.name == candidate.name
+                    }
+                },
+                onAdd = { pickedFriend ->
+                    friends = friends + pickedFriend
+                },
+                onDismiss = {
+                    showFriendPicker = false
+                }
             )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
 
-        Text("간단히 여행에 대해 기록해 보세요.", fontSize = 15.sp, color = TextPrimary)
-        Spacer(modifier = Modifier.height(12.dp))
+        /*
+         * 여행 메모 입력 영역
+         */
+        Text(
+            text = "간단히 여행에 대해 기록해 보세요.",
+            fontSize = 15.sp,
+            color = TextPrimary
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedTextField(
             value = memoInput,
-            onValueChange = { memoInput = it },
-            placeholder = { Text("~") },
+            onValueChange = { newValue ->
+                memoInput = newValue
+            },
+            placeholder = {
+                Text("여행에 대한 기록을 입력해 주세요.")
+            },
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -247,24 +433,52 @@ fun AddTravelScreen(
             )
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(
+            modifier = Modifier.height(10.dp)
+        )
 
+        /*
+         * 여행 기록 저장 버튼
+         */
         Button(
             onClick = {
-                if (memoInput.isNotBlank()) {
-                    val trimmedMemo = memoInput.trim()
-                    val photoUriString = photos.firstOrNull()?.toString()  // ⚠ 사진 여러 장 저장 구조는 별도 논의 필요
+                val trimmedMemo = memoInput.trim()
+
+                if (trimmedMemo.isNotBlank()) {
+                    /*
+                     * 현재 Entity는 사진 URI 한 장만 저장할 수 있으므로
+                     * 첫 번째로 선택된 사진만 저장한다.
+                     */
+                    val firstPhotoUri = photos
+                        .firstOrNull()
+                        ?.toString()
+
+                    val today = SimpleDateFormat(
+                        "yyyy-MM-dd",
+                        Locale.getDefault()
+                    ).format(Date())
 
                     scope.launch {
-                        db.travelRecordDao().insert(
-                            TravelRecord(
-                                placeName = placeName,      // ⚠ 실제 필드명 확인 필요
-                                memo = trimmedMemo,          // ⚠ 실제 필드명 확인 필요
-                                photoUri = photoUriString    // ⚠ 실제 필드명 확인 필요
-                            )
+                        val newRecord = TravelRecord(
+                            region = placeName,
+                            visitDate = today,
+                            memo = trimmedMemo,
+                            imageUri = firstPhotoUri
                         )
+
+                        db.travelRecordDao().insert(newRecord)
+
+                        /*
+                         * 저장 후 DB를 다시 조회하여
+                         * 화면의 여행 기록 목록을 갱신한다.
+                         */
+                        travelRecords = db
+                            .travelRecordDao()
+                            .getRecordsByRegion(placeName)
+
+                        memoInput = ""
+                        photos.clear()
                     }
-                    memoInput = ""
                 }
             },
             enabled = memoInput.isNotBlank(),
@@ -277,29 +491,65 @@ fun AddTravelScreen(
                 disabledContainerColor = ButtonDisabled
             )
         ) {
-            Text("저장", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "저장",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
 
-        Text("여행 기록", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Spacer(modifier = Modifier.height(12.dp))
+        /*
+         * 저장된 여행 기록 목록
+         */
+        Text(
+            text = "여행 기록",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
+        )
 
-        // 기존 posts.forEach → travelRecords.forEach 로 교체
-        travelRecords.forEach { record ->
-            TravelRecordItem(record = record)
-            Spacer(modifier = Modifier.height(14.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        if (travelRecords.isEmpty()) {
+            Text(
+                text = "아직 저장된 여행 기록이 없습니다.",
+                fontSize = 14.sp,
+                color = TextSecondary
+            )
+        } else {
+            travelRecords.forEach { record ->
+                TravelRecordItem(
+                    record = record
+                )
+
+                Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
     }
 }
 
-// 기존 TravelPostItem(post: TravelPost) → TravelRecord용으로 교체
-// ⚠ record.memo, record.timestamp 등은 실제 TravelRecord 필드명에 맞춰 조정 필요
+/**
+ * 저장된 여행 기록 한 개를 표시한다.
+ */
 @Composable
-private fun TravelRecordItem(record: TravelRecord) {
-    Row(modifier = Modifier.fillMaxWidth()) {
+private fun TravelRecordItem(
+    record: TravelRecord
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Box(
             modifier = Modifier
                 .size(36.dp)
@@ -307,17 +557,62 @@ private fun TravelRecordItem(record: TravelRecord) {
                 .background(ChipWhite),
             contentAlignment = Alignment.Center
         ) {
-            Text("나", fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text(
+                text = "나",
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
         }
-        Spacer(modifier = Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(record.memo, fontSize = 14.sp, color = TextPrimary)  // ⚠ 필드명 확인 필요
+
+        Spacer(
+            modifier = Modifier.width(10.dp)
+        )
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = record.visitDate,
+                fontSize = 12.sp,
+                color = TextSecondary
+            )
+
+            Spacer(
+                modifier = Modifier.height(4.dp)
+            )
+
+            Text(
+                text = record.memo,
+                fontSize = 14.sp,
+                color = TextPrimary
+            )
+
+            record.imageUri?.let { imageUri ->
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                AsyncImage(
+                    model = imageUri,
+                    contentDescription = "여행 기록 사진",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                )
+            }
         }
     }
 }
 
+/**
+ * 선택된 친구의 원형 아바타를 표시한다.
+ */
 @Composable
-private fun FriendAvatar(friend: Friend) {
+private fun FriendAvatar(
+    friend: Friend
+) {
     Box(
         modifier = Modifier
             .size(48.dp)
@@ -334,6 +629,9 @@ private fun FriendAvatar(friend: Friend) {
     }
 }
 
+/**
+ * 친구를 선택하는 드롭다운 영역이다.
+ */
 @Composable
 private fun FriendPickerDropdown(
     candidates: List<Friend>,
@@ -345,7 +643,11 @@ private fun FriendPickerDropdown(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(Color.White)
-            .border(1.dp, Divider, RoundedCornerShape(16.dp))
+            .border(
+                width = 1.dp,
+                color = Divider,
+                shape = RoundedCornerShape(16.dp)
+            )
             .padding(16.dp)
     ) {
         Row(
@@ -353,35 +655,70 @@ private fun FriendPickerDropdown(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("같이 여행한 친구를 골라보세요.", fontSize = 14.sp, color = TextSecondary)
+            Text(
+                text = "같이 여행한 친구를 골라보세요.",
+                fontSize = 14.sp,
+                color = TextSecondary
+            )
+
             Icon(
-                Icons.Filled.Close,
+                imageVector = Icons.Filled.Close,
                 contentDescription = "닫기",
                 tint = TextSecondary,
                 modifier = Modifier
                     .size(20.dp)
-                    .clickable { onDismiss() }
+                    .clickable {
+                        onDismiss()
+                    }
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
-        candidates.forEach { friend ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onAdd(friend) }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        if (candidates.isEmpty()) {
+            Text(
+                text = "추가할 수 있는 친구가 없습니다.",
+                fontSize = 13.sp,
+                color = TextSecondary
+            )
+        } else {
+            candidates.forEach { friend ->
+                Row(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(friend.color)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(friend.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                    Text("+ 추가하기", fontSize = 12.sp, color = TextSecondary)
+                        .fillMaxWidth()
+                        .clickable {
+                            onAdd(friend)
+                        }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(friend.color)
+                    )
+
+                    Spacer(
+                        modifier = Modifier.width(12.dp)
+                    )
+
+                    Column {
+                        Text(
+                            text = friend.name,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+
+                        Text(
+                            text = "+ 추가하기",
+                            fontSize = 12.sp,
+                            color = TextSecondary
+                        )
+                    }
                 }
             }
         }
