@@ -17,11 +17,23 @@ interface TravelRecordDao {
     @Query("SELECT * FROM travel_records ORDER BY createdAt DESC")
     suspend fun getAllRecords(): List<TravelRecord>
 
-    @Query("SELECT * FROM travel_records WHERE region = :region ORDER BY createdAt DESC")
-    suspend fun getRecordsByRegion(region: String): List<TravelRecord>
+    @Query("""
+    SELECT * FROM travel_records
+    WHERE userId = :userId
+    AND region = :region
+    ORDER BY createdAt DESC
+""")
+    suspend fun getRecordsByRegion(
+        userId: Int,
+        region: String
+    ): List<TravelRecord>
 
-    @Query("SELECT * FROM travel_records WHERE id = :recordId")
-    suspend fun getRecordById(recordId: Long): TravelRecord?
+    @Query("""
+    SELECT * FROM travel_records
+    WHERE userId = :userId
+    ORDER BY createdAt DESC
+""")
+    suspend fun getAllRecords(userId: Int): List<TravelRecord>
 
     @Update
     suspend fun update(record: TravelRecord)

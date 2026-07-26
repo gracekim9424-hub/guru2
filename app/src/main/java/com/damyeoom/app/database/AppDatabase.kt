@@ -16,14 +16,16 @@ import com.damyeoom.app.entity.TravelRecord
 //import com.example.app.entity.ChecklistItem
 //import com.example.app.entity.PlaceEntity
 //import com.example.app.entity.TravelRecord
-
+import com.damyeoom.app.dao.UserDao
+import com.damyeoom.app.entity.User
 @Database(
     entities = [
         TravelRecord::class,
         ChecklistItem::class,
-        PlaceEntity::class
+        PlaceEntity::class,
+        User::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,6 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun placeDao(): PlaceDao
 
+    abstract fun userDao():UserDao
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null

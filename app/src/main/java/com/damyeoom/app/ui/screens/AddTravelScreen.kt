@@ -110,7 +110,10 @@ fun AddTravelScreen(
     LaunchedEffect(placeName) {
         travelRecords = db
             .travelRecordDao()
-            .getRecordsByRegion(placeName)
+            .getRecordsByRegion(
+                userId = 1,
+                region = placeName
+            )
     }
 
     /*
@@ -433,63 +436,58 @@ fun AddTravelScreen(
             )
         )
 
-        Spacer(
-            modifier = Modifier.height(10.dp)
-        )
+        Spacer(modifier = Modifier.height(20.dp))
+            Button(
+                onClick = {
+                    val trimmedMemo = memoInput.trim()
 
-        /*
-         * 여행 기록 저장 버튼
-         */
-        Button(
-            onClick = {
-                val trimmedMemo = memoInput.trim()
+                    if (trimmedMemo.isNotBlank()) {
 
-                if (trimmedMemo.isNotBlank()) {
-                    /*
-                     * 현재 Entity는 사진 URI 한 장만 저장할 수 있으므로
-                     * 첫 번째로 선택된 사진만 저장한다.
-                     */
-                    val firstPhotoUri = photos
-                        .firstOrNull()
-                        ?.toString()
+                        val firstPhotoUri = photos
+                            .firstOrNull()
+                            ?.toString()
 
-                    val today = SimpleDateFormat(
-                        "yyyy-MM-dd",
-                        Locale.getDefault()
-                    ).format(Date())
+                        val today = SimpleDateFormat(
+                            "yyyy-MM-dd",
+                            Locale.getDefault()
+                        ).format(Date())
 
-                    scope.launch {
-                        val newRecord = TravelRecord(
-                            region = placeName,
-                            visitDate = today,
-                            memo = trimmedMemo,
-                            imageUri = firstPhotoUri
-                        )
+                        scope.launch {
+                            val newRecord = TravelRecord(
+                                userId = 1,
+                                region = placeName,
+                                visitDate = today,
+                                memo = trimmedMemo,
+                                imageUri = firstPhotoUri
+                            )
 
-                        db.travelRecordDao().insert(newRecord)
+                            db.travelRecordDao().insert(newRecord)
 
-                        /*
-                         * 저장 후 DB를 다시 조회하여
-                         * 화면의 여행 기록 목록을 갱신한다.
-                         */
-                        travelRecords = db
-                            .travelRecordDao()
-                            .getRecordsByRegion(placeName)
+                            /*
+                             * 저장 후 DB를 다시 조회하여
+                             * 화면의 여행 기록 목록을 갱신한다.
+                             */
+                            travelRecords = db
+                                .travelRecordDao()
+                                .getRecordsByRegion(
+                                    userId = 1,
+                                    region = placeName
+                                )
 
-                        memoInput = ""
-                        photos.clear()
+                            memoInput = ""
+                            photos.clear()
+                        }
                     }
-                }
-            },
-            enabled = memoInput.isNotBlank(),
-            modifier = Modifier
-                .align(Alignment.End)
-                .height(40.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = ButtonDark,
-                disabledContainerColor = ButtonDisabled
-            )
+                },
+                enabled = memoInput.isNotBlank(),
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .height(40.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ButtonDark,
+                    disabledContainerColor = ButtonDisabled
+                )
         ) {
             Text(
                 text = "저장",

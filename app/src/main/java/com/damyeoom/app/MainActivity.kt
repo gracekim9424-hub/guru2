@@ -10,19 +10,30 @@ import androidx.compose.ui.Modifier
 import com.damyeoom.app.ui.DamyeoomNavGraph
 import com.damyeoom.app.ui.theme.DamyeoomTheme
 import com.damyeoom.app.data.database.AppDatabase
-
+import androidx.lifecycle.lifecycleScope
+import com.damyeoom.app.data.loadPlacesFromAssets
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val db = AppDatabase.getDatabase(this)   // ← 추가
+        val db = AppDatabase.getDatabase(this)
+
+        lifecycleScope.launch {
+            val placeDao = db.placeDao()
+
+            if (placeDao.getPlaceCount() == 0) {
+                val places = loadPlacesFromAssets(applicationContext)
+                placeDao.insertAll(places)
+            }
+        }
 
         setContent {
             DamyeoomTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    DamyeoomNavGraph(db = db)     // ← db 전달
+                    DamyeoomNavGraph(db = db)
                 }
             }
         }
