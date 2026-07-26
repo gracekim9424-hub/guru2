@@ -18,15 +18,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.damyeoom.app.R
-import com.damyeoom.app.data.UserSession
 import com.damyeoom.app.data.database.AppDatabase
+import com.damyeoom.app.entity.User
 import com.damyeoom.app.ui.theme.*
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    onSignUpClick: () -> Unit
+fun SignUpScreen(
+    onSignUpComplete: () -> Unit
 ) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
@@ -34,13 +33,13 @@ fun LoginScreen(
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordConfirm by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    val isFormFilled = email.isNotBlank() && password.isNotBlank() && passwordConfirm.isNotBlank()
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BgLight)
-            .padding(horizontal = 24.dp),
+        modifier = Modifier.fillMaxSize().background(BgLight).padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(72.dp))
@@ -95,41 +94,59 @@ fun LoginScreen(
                 )
             )
 
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(text = "비밀번호 확인", fontSize = 14.sp, color = TextSecondary)
+            Spacer(modifier = Modifier.height(6.dp))
+            OutlinedTextField(
+                value = passwordConfirm,
+                onValueChange = { passwordConfirm = it; errorMessage = null },
+                placeholder = { Text("비밀번호를 다시 입력하세요") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = CardGray,
+                    focusedContainerColor = CardGray,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = TextPrimary
+                )
+            )
+
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(text = errorMessage ?: "", fontSize = 12.sp, color = ErrorRed)
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = {
+                    if (password != passwordConfirm) {
+                        errorMessage = "비밀번호가 일치하지 않습니다."
+                        return@Button
+                    }
                     scope.launch {
-                        val user = db.userDao().login(email.trim(), password)
-                        if (user != null) {
-                            errorMessage = null
-                            UserSession.login(user.userId)
-                            onLoginSuccess()
+                        val existing = db.userDao().getUserByEmail(email.trim())
+                        if (existing != null) {
+                            errorMessage = "이미 가입된 이메일입니다."
                         } else {
-                            errorMessage = "이메일 또는 비밀번호가 맞지 않습니다."
+                            db.userDao().insert(User(email = email.trim(), password = password))
+                            onSignUpComplete()
                         }
                     }
                 },
+                enabled = isFormFilled,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(26.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ButtonDark)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ButtonDark,
+                    disabledContainerColor = ButtonDisabled
+                )
             ) {
-                Text("로그인", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedButton(
-                onClick = onSignUpClick,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(26.dp)
-            ) {
-                Text("회원가입", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Text("가입하기", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
             }
         }
     }

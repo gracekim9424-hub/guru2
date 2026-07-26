@@ -14,3 +14,4 @@ val ButtonDisabled = Color(0xFFB7BBB4)     // 비활성 버튼 (입력 전 회�
 val AccentTeal = Color(0xFF0F6B54)         // 포인트 틸 컬러 (허용 버튼 계열)
 val Divider = Color(0xFFDDDFDA)
 val PinRed = Color(0xFFE0483E)
+val ErrorRed = Color(0xFFD64545)          // 로그인/회원가입 경고 문구

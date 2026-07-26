@@ -5,51 +5,46 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.damyeoom.app.data.database.AppDatabase
 import com.damyeoom.app.ui.screens.AddTravelScreen
 import com.damyeoom.app.ui.screens.HomeScreen
 import com.damyeoom.app.ui.screens.LoginScreen
 import com.damyeoom.app.ui.screens.PlaceDetailScreen
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import com.damyeoom.app.entity.User
+import com.damyeoom.app.ui.screens.SignUpScreen
+
+object Routes {
+    const val LOGIN = "login"
+    const val SIGNUP = "signup"
+    const val HOME = "home"
+    const val ADD_TRAVEL = "add_travel/{placeName}"
+    const val PLACE_DETAIL = "place_detail/{placeName}"
+
+    fun addTravel(placeName: String) = "add_travel/$placeName"
+    fun placeDetail(placeName: String) = "place_detail/$placeName"
+}
 
 @Composable
 fun DamyeoomNavGraph(
-    db: AppDatabase,
     navController: NavHostController = rememberNavController()
 ) {
-    val scope = rememberCoroutineScope()
-    NavHost(
-        navController = navController,
-        startDestination = Routes.LOGIN
-    ) {
+    NavHost(navController = navController, startDestination = Routes.LOGIN) {
 
         composable(Routes.LOGIN) {
             LoginScreen(
-                onSignUpClick = { email, password ->
-
-                    scope.launch {
-
-                        val existUser =
-                            db.userDao().getUserByEmail(email)
-
-                        if (existUser == null) {
-
-                            db.userDao().insert(
-                                User(
-                                    email = email,
-                                    password = password
-                                )
-                            )
-                        }
-
-                        navController.navigate(Routes.HOME) {
-                            popUpTo(Routes.LOGIN) {
-                                inclusive = true
-                            }
-                        }
+                onLoginSuccess = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
                     }
+                },
+                onSignUpClick = {
+                    navController.navigate(Routes.SIGNUP)
+                }
+            )
+        }
+
+        composable(Routes.SIGNUP) {
+            SignUpScreen(
+                onSignUpComplete = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -57,38 +52,25 @@ fun DamyeoomNavGraph(
         composable(Routes.HOME) {
             HomeScreen(
                 onAddTravelClick = {
-                    navController.navigate(
-                        Routes.addTravel("대전")
-                    )
+                    navController.navigate(Routes.addTravel("대전"))
                 },
                 onPlaceClick = { placeName ->
-                    navController.navigate(
-                        Routes.placeDetail(placeName)
-                    )
+                    navController.navigate(Routes.placeDetail(placeName))
                 }
             )
         }
 
         composable(Routes.ADD_TRAVEL) { backStackEntry ->
-            val placeName =
-                backStackEntry.arguments?.getString("placeName") ?: "대전"
-
+            val placeName = backStackEntry.arguments?.getString("placeName") ?: "대전"
             AddTravelScreen(
                 placeName = placeName,
-                db = db,
-                onSelectOnMap = {
-                    navController.navigate(Routes.HOME)
-                }
+                onSelectOnMap = { navController.navigate(Routes.HOME) }
             )
         }
 
         composable(Routes.PLACE_DETAIL) { backStackEntry ->
-            val placeName =
-                backStackEntry.arguments?.getString("placeName") ?: ""
-
-            PlaceDetailScreen(
-                placeName = placeName
-            )
+            val placeName = backStackEntry.arguments?.getString("placeName") ?: ""
+            PlaceDetailScreen(placeName = placeName)
         }
     }
 }

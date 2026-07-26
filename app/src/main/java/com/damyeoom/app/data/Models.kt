@@ -44,8 +44,3 @@ val sampleSearchFriends = listOf(
     Friend("유나", Color(0xFF6FBBA6)),
     Friend("영희", Color(0xFF8FB6D9)),
 )
-
-val sampleTravelPosts = listOf(
-    TravelPost("지은", "여기 진짜 좋았어! 다음에 또 가고 싶다 🚗", "2026.07.10"),
-    TravelPost("하늘", "날씨 좋을 때 가면 최고일 듯", "2026.07.12"),
-)

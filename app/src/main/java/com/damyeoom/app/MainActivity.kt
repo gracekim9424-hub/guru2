@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             DamyeoomTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    DamyeoomNavGraph(db = db)
+                    DamyeoomNavGraph()
                 }
             }
         }
