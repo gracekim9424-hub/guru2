@@ -32,6 +32,8 @@ import com.damyeoom.app.data.resolvePlaceImage
 import com.damyeoom.app.entity.PlaceEntity
 import com.damyeoom.app.ui.theme.*
 import com.naver.maps.map.MapView
+import com.naver.maps.map.NaverMap
+import com.naver.maps.map.overlay.Marker
 import com.team.travelmap.addAttractionMarkers
 import com.team.travelmap.loadPhotoMarkersFromDb
 
@@ -131,6 +133,21 @@ private fun EmbeddedNaverMap(modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     val mapView = remember { MapView(context) }
 
+    // 현재 지도에 찍힌 "내 기록" 마커들을 계속 추적 (다시 그릴 때 먼저 지워야 중첩 방지)
+    var naverMapRef by remember { mutableStateOf<NaverMap?>(null) }
+    val photoMarkers = remember { mutableStateListOf<Marker>() }
+
+    fun refreshPhotoMarkers() {
+        val map = naverMapRef ?: return
+        // 기존 마커들 지도에서 제거
+        photoMarkers.forEach { it.map = null }
+        photoMarkers.clear()
+        // DB에서 최신 기록 다시 불러와서 그리기
+        loadPhotoMarkersFromDb(map, context, scope) { loaded ->
+            photoMarkers.addAll(loaded)
+        }
+    }
+
     AndroidView(modifier = modifier, factory = { mapView })
 
     DisposableEffect(lifecycleOwner) {
@@ -138,7 +155,11 @@ private fun EmbeddedNaverMap(modifier: Modifier = Modifier) {
             when (event) {
                 Lifecycle.Event.ON_CREATE -> mapView.onCreate(Bundle())
                 Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_RESUME -> {
+                    mapView.onResume()
+                    // 다른 화면(여행지 추가 등)에서 돌아올 때마다 최신 기록으로 마커 갱신
+                    refreshPhotoMarkers()
+                }
                 Lifecycle.Event.ON_PAUSE -> mapView.onPause()
                 Lifecycle.Event.ON_STOP -> mapView.onStop()
                 Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
@@ -157,7 +178,8 @@ private fun EmbeddedNaverMap(modifier: Modifier = Modifier) {
                 6.5
             )
             addAttractionMarkers(naverMap)
-            loadPhotoMarkersFromDb(naverMap, context, scope)
+            naverMapRef = naverMap
+            refreshPhotoMarkers()
         }
     }
 }

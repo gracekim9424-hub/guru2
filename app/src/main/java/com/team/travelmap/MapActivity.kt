@@ -40,6 +40,7 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var naverMap: NaverMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var currentMarker: Marker? = null
+    private val recordMarkers = mutableListOf<Marker>()
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -134,8 +135,23 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
             startActivity(intent)
         }
 
-        loadPhotoMarkersFromDb(naverMap, applicationContext, lifecycleScope)
+        refreshRecordMarkers()
         addAttractionMarkers(naverMap)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::naverMap.isInitialized) {
+            refreshRecordMarkers()
+        }
+    }
+
+    private fun refreshRecordMarkers() {
+        recordMarkers.forEach { it.map = null }
+        recordMarkers.clear()
+        loadPhotoMarkersFromDb(naverMap, applicationContext, lifecycleScope) { markers ->
+            recordMarkers.addAll(markers)
+        }
     }
 
     override fun onRequestPermissionsResult(

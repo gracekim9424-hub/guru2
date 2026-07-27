@@ -34,12 +34,12 @@ import coil.compose.AsyncImage
 import com.damyeoom.app.data.Friend
 import com.damyeoom.app.data.UserSession
 import com.damyeoom.app.data.database.AppDatabase
+import com.damyeoom.app.data.GeocodeRetrofitClient
 import com.damyeoom.app.data.koreanRegions
 import com.damyeoom.app.data.sampleAddedFriends
 import com.damyeoom.app.data.sampleSearchFriends
 import com.damyeoom.app.entity.TravelRecord
 import com.damyeoom.app.ui.theme.*
-import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -53,6 +53,28 @@ private fun createCameraImageUri(context: Context): Uri {
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }
 
+// 장소명(또는 지역명)으로 좌표를 조회. 실패하면 null, null 반환 (호출부에서 예외처리 불필요)
+private suspend fun resolveCoordinates(query: String): Pair<Double?, Double?> {
+    if (query.isBlank()) return null to null
+    return try {
+        val response = GeocodeRetrofitClient.instance.getGeocode(
+            query = query,
+            clientId = GeocodeRetrofitClient.CLIENT_ID,
+            clientSecret = GeocodeRetrofitClient.CLIENT_SECRET
+        )
+        android.util.Log.d("GEOCODE_DEBUG", "응답: $response")
+        val first = response.addresses.firstOrNull()
+        if (first != null) {
+            first.y.toDoubleOrNull() to first.x.toDoubleOrNull()
+        } else {
+            android.util.Log.d("GEOCODE_DEBUG", "주소를 찾지 못함: $query")
+            null to null
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("GEOCODE_DEBUG", "지오코딩 실패", e)
+        null to null
+    }
+}
 
 private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
 
@@ -80,6 +102,7 @@ fun AddTravelScreen(
 
     var titleInput by remember { mutableStateOf("") }
     var memoInput by remember { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
     val records = remember { mutableStateListOf<TravelRecord>() }
 
     suspend fun refreshRecords() {
@@ -183,7 +206,7 @@ fun AddTravelScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 장소명 (이제 DB의 placeName 칼럼에 바로 저장됨)
+        // 장소명 (DB의 placeName 칼럼에 저장 + 지오코딩 조회 쿼리로 사용)
         Text("장소명", fontSize = 14.sp, color = TextSecondary)
         Spacer(modifier = Modifier.height(6.dp))
         OutlinedTextField(
@@ -332,25 +355,38 @@ fun AddTravelScreen(
             Button(
                 onClick = {
                     val userId = UserSession.currentUserId.value
-                    if (memoInput.isNotBlank() && userId != null) {
+                    if (memoInput.isNotBlank() && userId != null && !isSaving) {
+                        isSaving = true
                         scope.launch {
+                            // 1. 장소명 우선, 없으면 지역명으로 지오코딩 조회
+                            val query = if (titleInput.isBlank()) {
+                                selectedRegion
+                            } else {
+                                "$selectedRegion ${titleInput.trim()}"
+                            }
+                            val (geoLat, geoLng) = resolveCoordinates(query)
+
+                            // 2. 좌표 포함해서 TravelRecord 생성 및 저장
                             val record = TravelRecord(
                                 userId = userId,
                                 region = selectedRegion,
                                 placeName = titleInput.trim(),
                                 visitDate = dateFormat.format(java.util.Date(selectedDateMillis)),
                                 memo = memoInput.trim(),
-                                imageUri = encodePhotos(photos)
+                                imageUri = encodePhotos(photos),
+                                latitude = geoLat,
+                                longitude = geoLng
                             )
                             db.travelRecordDao().insert(record)
                             refreshRecords()
                             titleInput = ""
                             memoInput = ""
                             photos.clear()
+                            isSaving = false
                         }
                     }
                 },
-                enabled = memoInput.isNotBlank(),
+                enabled = memoInput.isNotBlank() && !isSaving,
                 modifier = Modifier.height(40.dp),
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -358,7 +394,11 @@ fun AddTravelScreen(
                     disabledContainerColor = ButtonDisabled
                 )
             ) {
-                Text("저장", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                } else {
+                    Text("저장", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
 

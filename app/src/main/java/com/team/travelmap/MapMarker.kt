@@ -32,23 +32,30 @@ fun addAttractionMarkers(naverMap: NaverMap, attractions: List<Attraction> = def
     }
 }
 
-fun loadPhotoMarkersFromDb(naverMap: NaverMap, context: Context, scope: CoroutineScope) {
+fun loadPhotoMarkersFromDb(
+    naverMap: NaverMap,
+    context: Context,
+    scope: CoroutineScope,
+    onMarkersLoaded: (List<Marker>) -> Unit = {}   // 추가
+) {
     scope.launch {
         val records = withContext(Dispatchers.IO) {
             AppDatabase.getDatabase(context).travelRecordDao().getAllRecords()
         }
-        records.forEach { record ->
+        val markers = records.mapNotNull { record ->
             val lat = record.latitude
             val lon = record.longitude
             if (lat != null && lon != null) {
                 val firstPhoto = decodePhotos(record.imageUri).firstOrNull()
                 addPhotoMarker(naverMap, context, lat, lon, firstPhoto)
-            }
+            } else null
         }
+        onMarkersLoaded(markers)   // 추가
     }
 }
 
-fun addPhotoMarker(naverMap: NaverMap, context: Context, lat: Double, lon: Double, photoUri: String?) {
+
+fun addPhotoMarker(naverMap: NaverMap, context: Context, lat: Double, lon: Double, photoUri: String?): Marker {  // 반환형 추가
     val marker = Marker()
     marker.position = LatLng(lat, lon)
 
@@ -66,4 +73,5 @@ fun addPhotoMarker(naverMap: NaverMap, context: Context, lat: Double, lon: Doubl
         }
     }
     marker.map = naverMap
+    return marker   // 추가
 }
