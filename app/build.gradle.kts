@@ -65,4 +65,11 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     kapt("androidx.room:room-compiler:$roomVersion")
     implementation("com.google.code.gson:gson:2.11.0")
+
+    // 지도/날씨 통합
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.naver.maps:map-sdk:3.23.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 }

@@ -44,6 +44,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
+import com.damyeoom.app.data.encodePhotos
+import com.damyeoom.app.data.decodePhotos
 
 private fun createCameraImageUri(context: Context): Uri {
     val imagesDir = File(context.cacheDir, "images").apply { mkdirs() }
@@ -51,19 +53,6 @@ private fun createCameraImageUri(context: Context): Uri {
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }
 
-private fun encodePhotos(uris: List<Uri>): String? {
-    if (uris.isEmpty()) return null
-    return Gson().toJson(uris.map { it.toString() })
-}
-
-private fun decodePhotos(json: String?): List<String> {
-    if (json.isNullOrBlank()) return emptyList()
-    return try {
-        Gson().fromJson(json, Array<String>::class.java).toList()
-    } catch (e: Exception) {
-        emptyList()
-    }
-}
 
 private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
 

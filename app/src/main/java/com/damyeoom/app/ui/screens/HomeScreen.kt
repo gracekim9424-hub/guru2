@@ -1,5 +1,6 @@
 package com.damyeoom.app.ui.screens
 
+import android.os.Bundle
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,10 +16,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import com.damyeoom.app.R
 import com.damyeoom.app.data.database.AppDatabase
@@ -26,6 +31,9 @@ import com.damyeoom.app.data.placeExtras
 import com.damyeoom.app.data.resolvePlaceImage
 import com.damyeoom.app.entity.PlaceEntity
 import com.damyeoom.app.ui.theme.*
+import com.naver.maps.map.MapView
+import com.team.travelmap.addAttractionMarkers
+import com.team.travelmap.loadPhotoMarkersFromDb
 
 @Composable
 fun HomeScreen(
@@ -38,10 +46,7 @@ fun HomeScreen(
     var previewPlaces by remember { mutableStateOf(listOf<PlaceEntity>()) }
 
     LaunchedEffect(Unit) {
-        // 홈 화면에는 이 6개 장소만 고정으로 보여줍니다 (placeId 기준)
         val featuredIds = listOf(54, 55, 5, 4, 56, 57)
-        // 을왕리해수욕장(54), 헤이리 예술마을(55), 한국민속촌(5), 수원화성(4), 광명동굴(56), 화담숲(57)
-
         db.placeDao().getAllPlaces().collect { all ->
             previewPlaces = featuredIds.mapNotNull { id -> all.find { it.placeId == id } }
         }
@@ -73,19 +78,15 @@ fun HomeScreen(
             }
         }
 
+        // 정적 이미지 대신 실제 네이버 지도 (핀 포함)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(horizontal = 20.dp),
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 20.dp)
+                .clip(RoundedCornerShape(20.dp))
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.img_south_korea_map),
-                contentDescription = "대한민국 지도",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize()
-            )
+            EmbeddedNaverMap(modifier = Modifier.fillMaxSize())
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -119,6 +120,44 @@ fun HomeScreen(
             items(previewPlaces) { place ->
                 PlaceCard(place = place, onClick = { onPlaceClick(place.placeId) })
             }
+        }
+    }
+}
+
+@Composable
+private fun EmbeddedNaverMap(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    val mapView = remember { MapView(context) }
+
+    AndroidView(modifier = modifier, factory = { mapView })
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_CREATE -> mapView.onCreate(Bundle())
+                Lifecycle.Event.ON_START -> mapView.onStart()
+                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                Lifecycle.Event.ON_STOP -> mapView.onStop()
+                Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(mapView) {
+        mapView.getMapAsync { naverMap ->
+            // 처음에 한반도 전체가 보이도록 카메라 위치 설정
+            naverMap.cameraPosition = com.naver.maps.map.CameraPosition(
+                com.naver.maps.geometry.LatLng(36.5, 127.8),
+                6.5
+            )
+            addAttractionMarkers(naverMap)
+            loadPhotoMarkersFromDb(naverMap, context, scope)
         }
     }
 }
