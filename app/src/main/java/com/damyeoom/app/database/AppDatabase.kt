@@ -25,7 +25,7 @@ import com.damyeoom.app.entity.User
         PlaceEntity::class,
         User::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

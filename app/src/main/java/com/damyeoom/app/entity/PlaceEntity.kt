@@ -17,5 +17,9 @@ data class PlaceEntity(
     val latitude: Double,
     val longitude: Double,
 
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+
+    val openingHours: String? = null,
+    val phoneNumber: String? = null,
+    val recommendedFor: String? = null
 )
