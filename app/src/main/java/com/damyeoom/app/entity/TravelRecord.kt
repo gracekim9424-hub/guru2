@@ -19,6 +19,8 @@ data class TravelRecord(
     // 여행 메모
     val memo: String = "",
 
+    val placeName: String = "",   // TravelRecord에 추가 필요
+
     // 사진 한 장의 URI
     val imageUri: String? = null,
 

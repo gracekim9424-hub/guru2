@@ -14,26 +14,44 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.damyeoom.app.R
-import com.damyeoom.app.data.RecommendedPlace
-import com.damyeoom.app.data.sampleRecommendedPlaces
+import com.damyeoom.app.data.database.AppDatabase
+import com.damyeoom.app.data.placeExtras
+import com.damyeoom.app.data.resolvePlaceImage
+import com.damyeoom.app.entity.PlaceEntity
 import com.damyeoom.app.ui.theme.*
 
 @Composable
 fun HomeScreen(
     onAddTravelClick: () -> Unit,
-    onPlaceClick: (String) -> Unit
+    onPlaceClick: (Int) -> Unit,
+    onSeeMoreClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getDatabase(context) }
+    var previewPlaces by remember { mutableStateOf(listOf<PlaceEntity>()) }
+
+    LaunchedEffect(Unit) {
+        // 홈 화면에는 이 6개 장소만 고정으로 보여줍니다 (placeId 기준)
+        val featuredIds = listOf(54, 55, 5, 4, 56, 57)
+        // 을왕리해수욕장(54), 헤이리 예술마을(55), 한국민속촌(5), 수원화성(4), 광명동굴(56), 화담숲(57)
+
+        db.placeDao().getAllPlaces().collect { all ->
+            previewPlaces = featuredIds.mapNotNull { id -> all.find { it.placeId == id } }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BgLight)
     ) {
-        // 상단 타이틀 바
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -55,7 +73,6 @@ fun HomeScreen(
             }
         }
 
-        // 지도 영역
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -73,14 +90,24 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 추천 여행지 섹션
-        Text(
-            text = "주변 여행지를 추천해드릴게요!",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "주변 여행지를 추천해드릴게요!",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Text(
+                text = "더보기",
+                fontSize = 13.sp,
+                color = TextSecondary,
+                modifier = Modifier.clickable { onSeeMoreClick() }
+            )
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -89,18 +116,19 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.padding(bottom = 20.dp)
         ) {
-            items(sampleRecommendedPlaces) { place ->
-                RecommendedPlaceCard(place = place, onClick = { onPlaceClick(place.name) })
+            items(previewPlaces) { place ->
+                PlaceCard(place = place, onClick = { onPlaceClick(place.placeId) })
             }
         }
     }
 }
 
 @Composable
-private fun RecommendedPlaceCard(
-    place: RecommendedPlace,
-    onClick: () -> Unit
-) {
+private fun PlaceCard(place: PlaceEntity, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val extra = placeExtras[place.placeId]
+    val imageModel = resolvePlaceImage(context, extra?.cardImageRes ?: place.imageUrl)
+
     Column(
         modifier = Modifier
             .width(140.dp)
@@ -110,29 +138,33 @@ private fun RecommendedPlaceCard(
             modifier = Modifier
                 .size(140.dp)
                 .clip(RoundedCornerShape(18.dp))
+                .background(CardGray)
         ) {
-            // 실제 여행지 사진
-            Image(
-                painter = painterResource(id = place.imageRes),
-                contentDescription = place.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // 태그 오버레이
-            Row(
-                modifier = Modifier.padding(10.dp)
-            ) {
-                place.tags.forEach { tag ->
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.9f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(text = tag, fontSize = 11.sp, color = TextPrimary)
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
+            if (imageModel != null) {
+                AsyncImage(
+                    model = imageModel,
+                    contentDescription = place.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Row(modifier = Modifier.padding(10.dp)) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.9f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(text = place.region, fontSize = 11.sp, color = TextPrimary)
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.9f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(text = place.category, fontSize = 11.sp, color = TextPrimary)
                 }
             }
         }

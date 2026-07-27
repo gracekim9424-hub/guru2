@@ -23,11 +23,8 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             val placeDao = db.placeDao()
-
-            if (placeDao.getPlaceCount() == 0) {
-                val places = loadPlacesFromAssets(applicationContext)
-                placeDao.insertAll(places)
-            }
+            val places = loadPlacesFromAssets(applicationContext)
+            placeDao.insertAll(places)
         }
 
         setContent {
