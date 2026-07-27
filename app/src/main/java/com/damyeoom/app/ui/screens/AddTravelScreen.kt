@@ -6,9 +6,11 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -31,13 +33,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
-import com.damyeoom.app.data.Friend
 import com.damyeoom.app.data.UserSession
 import com.damyeoom.app.data.database.AppDatabase
 import com.damyeoom.app.data.GeocodeRetrofitClient
 import com.damyeoom.app.data.koreanRegions
-import com.damyeoom.app.data.sampleAddedFriends
-import com.damyeoom.app.data.sampleSearchFriends
+import com.damyeoom.app.entity.FriendEntity
 import com.damyeoom.app.entity.TravelRecord
 import com.damyeoom.app.ui.theme.*
 import kotlinx.coroutines.launch
@@ -78,7 +78,24 @@ private suspend fun resolveCoordinates(query: String): Pair<Double?, Double?> {
 
 private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val friendColorPalette = listOf(
+    0xFF8FB6D9,
+    0xFFF2C6C2,
+    0xFFD9CBEF,
+    0xFFE0AE68,
+    0xFF8B5E3C,
+    0xFFB9A6D9,
+    0xFF6FBBA6
+)
+
+private val defaultFriendSeeds = listOf(
+    "민수" to 0xFF8FB6D9,
+    "지은" to 0xFFF2C6C2,
+    "하늘" to 0xFFD9CBEF,
+    "태오" to 0xFFE0AE68
+)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AddTravelScreen(
     placeName: String,
@@ -94,8 +111,14 @@ fun AddTravelScreen(
     var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    var friends by remember { mutableStateOf(sampleAddedFriends) }
-    var showFriendPicker by remember { mutableStateOf(false) }
+    val currentUserId = UserSession.currentUserId.value
+
+    var friends by remember { mutableStateOf<List<FriendEntity>>(emptyList()) }
+    var showAddFriendDialog by remember { mutableStateOf(false) }
+    var newFriendName by remember { mutableStateOf("") }
+    var addFriendError by remember { mutableStateOf<String?>(null) }
+    var friendPendingDelete by remember { mutableStateOf<FriendEntity?>(null) }
+    var isFriendSaving by remember { mutableStateOf(false) }
 
     val photos = remember { mutableStateListOf<Uri>() }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -111,7 +134,35 @@ fun AddTravelScreen(
         records.addAll(all.filter { it.region == selectedRegion })
     }
 
+    suspend fun refreshFriends() {
+        val userId = currentUserId ?: return
+        val preferences = context.getSharedPreferences(
+            "friend_seed_preferences",
+            Context.MODE_PRIVATE
+        )
+        val seedKey = "seeded_user_$userId"
+
+        var loadedFriends = db.friendDao().getFriends(userId)
+
+        if (loadedFriends.isEmpty() && !preferences.getBoolean(seedKey, false)) {
+            defaultFriendSeeds.forEach { (name, colorArgb) ->
+                db.friendDao().insert(
+                    FriendEntity(
+                        userId = userId,
+                        name = name,
+                        colorArgb = colorArgb
+                    )
+                )
+            }
+            preferences.edit().putBoolean(seedKey, true).apply()
+            loadedFriends = db.friendDao().getFriends(userId)
+        }
+
+        friends = loadedFriends
+    }
+
     LaunchedEffect(selectedRegion) { refreshRecords() }
+    LaunchedEffect(currentUserId) { refreshFriends() }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -291,14 +342,26 @@ fun AddTravelScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(friends) { friend -> FriendAvatar(friend = friend) }
+            items(
+                items = friends,
+                key = { it.id }
+            ) { friend ->
+                FriendAvatar(
+                    friend = friend,
+                    onLongClick = { friendPendingDelete = friend }
+                )
+            }
             item {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
                         .background(ButtonDark)
-                        .clickable { showFriendPicker = !showFriendPicker },
+                        .clickable {
+                            newFriendName = ""
+                            addFriendError = null
+                            showAddFriendDialog = true
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = "친구 추가", tint = Color.White)
@@ -306,12 +369,85 @@ fun AddTravelScreen(
             }
         }
 
-        if (showFriendPicker) {
+        if (showAddFriendDialog) {
             Spacer(modifier = Modifier.height(12.dp))
-            FriendPickerDropdown(
-                candidates = sampleSearchFriends.filter { c -> friends.none { it.name == c.name } },
-                onAdd = { picked -> friends = friends + picked },
-                onDismiss = { showFriendPicker = false }
+
+            AddFriendCard(
+                name = newFriendName,
+                errorMessage = addFriendError,
+                isSaving = isFriendSaving,
+                onNameChange = {
+                    newFriendName = it
+                    addFriendError = null
+                },
+                onAdd = {
+                    val userId = currentUserId
+                    val normalizedName = newFriendName
+                        .trim()
+                        .replace(Regex("\\s+"), " ")
+
+                    when {
+                        userId == null -> {
+                            addFriendError = "로그인 정보를 확인할 수 없습니다."
+                        }
+
+                        normalizedName.isBlank() -> {
+                            addFriendError = "친구 이름을 입력해주세요."
+                        }
+
+                        normalizedName.length > 20 -> {
+                            addFriendError = "친구 이름은 20자 이하로 입력해주세요."
+                        }
+
+                        friends.any {
+                            it.name.equals(normalizedName, ignoreCase = true)
+                        } -> {
+                            addFriendError = "이미 추가된 친구입니다."
+                        }
+
+                        else -> {
+                            isFriendSaving = true
+                            scope.launch {
+                                try {
+                                    val colorArgb = friendColorPalette[
+                                        friends.size % friendColorPalette.size
+                                    ]
+
+                                    val insertedId = db.friendDao().insert(
+                                        FriendEntity(
+                                            userId = userId,
+                                            name = normalizedName,
+                                            colorArgb = colorArgb
+                                        )
+                                    )
+
+                                    if (insertedId == -1L) {
+                                        addFriendError = "이미 추가된 친구입니다."
+                                    } else {
+                                        refreshFriends()
+                                        showAddFriendDialog = false
+                                        newFriendName = ""
+                                        addFriendError = null
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e(
+                                        "FriendAdd",
+                                        "친구 추가 실패",
+                                        e
+                                    )
+                                    addFriendError = "친구를 추가하지 못했습니다."
+                                } finally {
+                                    isFriendSaving = false
+                                }
+                            }
+                        }
+                    }
+                },
+                onDismiss = {
+                    showAddFriendDialog = false
+                    newFriendName = ""
+                    addFriendError = null
+                }
             )
         }
 
@@ -423,6 +559,155 @@ fun AddTravelScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
     }
+
+    friendPendingDelete?.let { friend ->
+        AlertDialog(
+            onDismissRequest = { if (!isFriendSaving) friendPendingDelete = null },
+            title = { Text("친구를 삭제할까요?", fontWeight = FontWeight.Bold) },
+            text = { Text("${friend.name}님을 친구 목록에서 삭제합니다.") },
+            dismissButton = {
+                TextButton(
+                    onClick = { friendPendingDelete = null },
+                    enabled = !isFriendSaving
+                ) { Text("취소") }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (isFriendSaving) return@TextButton
+                        isFriendSaving = true
+                        scope.launch {
+                            try {
+                                db.friendDao().delete(friend)
+                                refreshFriends()
+                                friendPendingDelete = null
+                            } finally {
+                                isFriendSaving = false
+                            }
+                        }
+                    },
+                    enabled = !isFriendSaving
+                ) {
+                    if (isFriendSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("삭제", color = PinRed, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun AddFriendCard(
+    name: String,
+    errorMessage: String?,
+    isSaving: Boolean,
+    onNameChange: (String) -> Unit,
+    onAdd: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .border(
+                width = 1.dp,
+                color = Divider,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "같이 여행한 친구를 추가해보세요.",
+                fontSize = 14.sp,
+                color = TextSecondary
+            )
+
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "닫기",
+                tint = TextSecondary,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable { onDismiss() }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        OutlinedTextField(
+            value = name,
+            onValueChange = onNameChange,
+            placeholder = { Text("친구 이름을 입력해주세요.") },
+            singleLine = true,
+            isError = errorMessage != null,
+            supportingText = {
+                errorMessage?.let { message ->
+                    Text(message)
+                }
+            },
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = CardGray,
+                focusedContainerColor = CardGray,
+                unfocusedBorderColor = Color.Transparent,
+                focusedBorderColor = TextPrimary,
+                errorContainerColor = CardGray
+            )
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isSaving
+            ) {
+                Text(
+                    text = "취소",
+                    color = TextSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            Button(
+                onClick = onAdd,
+                enabled = !isSaving && name.isNotBlank(),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ButtonDark,
+                    disabledContainerColor = ButtonDisabled
+                )
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White
+                    )
+                } else {
+                    Text(
+                        text = "추가",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -469,56 +754,28 @@ private fun TravelRecordItem(record: TravelRecord, isMine: Boolean, onDelete: ()
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FriendAvatar(friend: Friend) {
+private fun FriendAvatar(
+    friend: FriendEntity,
+    onLongClick: () -> Unit
+) {
     Box(
-        modifier = Modifier.size(48.dp).clip(CircleShape).background(friend.color),
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(Color(friend.colorArgb))
+            .combinedClickable(
+                onClick = {},
+                onLongClick = onLongClick
+            ),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = friend.name.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-    }
-}
-
-@Composable
-private fun FriendPickerDropdown(
-    candidates: List<Friend>,
-    onAdd: (Friend) -> Unit,
-    onDismiss: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White)
-            .border(1.dp, Divider, RoundedCornerShape(16.dp))
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("같이 여행한 친구를 골라보세요.", fontSize = 14.sp, color = TextSecondary)
-            Icon(
-                Icons.Filled.Close,
-                contentDescription = "닫기",
-                tint = TextSecondary,
-                modifier = Modifier.size(20.dp).clickable { onDismiss() }
-            )
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        candidates.forEach { friend ->
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable { onAdd(friend) }.padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(friend.color))
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(friend.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                    Text("+ 추가하기", fontSize = 12.sp, color = TextSecondary)
-                }
-            }
-        }
+        Text(
+            text = friend.name.take(1),
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+        )
     }
 }
