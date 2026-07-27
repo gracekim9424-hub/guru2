@@ -144,7 +144,7 @@ fun PlaceDetailScreen(
                 InfoRow(label = "전화번호", value = it)
             }
             extra?.recommendedFor?.let {
-                InfoRow(label = "추천ㅠ", value = it)
+                InfoRow(label = "추천", value = it)
             }
         }
 
