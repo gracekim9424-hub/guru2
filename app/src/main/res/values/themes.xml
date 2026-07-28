@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.Damyeoom" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
