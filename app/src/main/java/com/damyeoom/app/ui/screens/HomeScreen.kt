@@ -54,34 +54,45 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+// 날씨 API 인증 키
 private const val WEATHER_API_KEY =
     "ead6912db6b53ee0abad75f8b60d1900"
 
+// 앱의 메인 홈 화면
 @Composable
 fun HomeScreen(
     onAddTravelClick: () -> Unit,
     onPlaceClick: (Int) -> Unit,
     onSeeMoreClick: () -> Unit
 ) {
+    // Room DB 설정
     val context = LocalContext.current
     val db = remember {
         AppDatabase.getDatabase(context)
     }
 
+    // 홈에 표시할 추천 장소
     var previewPlaces by remember {
-        mutableStateOf(listOf<PlaceEntity>())
+        mutableStateOf(
+            listOf<PlaceEntity>()
+        )
     }
 
+    // 추천 장소를 DB에서 조회
     LaunchedEffect(Unit) {
-        val featuredIds = listOf(54, 55, 5, 4, 56, 57)
+        val featuredIds =
+            listOf(54, 55, 5, 4, 56, 57)
 
-        db.placeDao().getAllPlaces().collect { allPlaces ->
-            previewPlaces = featuredIds.mapNotNull { id ->
-                allPlaces.find { place ->
-                    place.placeId == id
-                }
+        db.placeDao()
+            .getAllPlaces()
+            .collect { allPlaces ->
+                previewPlaces =
+                    featuredIds.mapNotNull { id ->
+                        allPlaces.find { place ->
+                            place.placeId == id
+                        }
+                    }
             }
-        }
     }
 
     Column(
@@ -89,6 +100,7 @@ fun HomeScreen(
             .fillMaxSize()
             .background(BgLight)
     ) {
+        // 상단 로고와 여행지 추가 버튼
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -96,41 +108,55 @@ fun HomeScreen(
                     horizontal = 20.dp,
                     vertical = 20.dp
                 ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment =
+                Alignment.CenterVertically,
+            horizontalArrangement =
+                Arrangement.SpaceBetween
         ) {
             Image(
                 painter = painterResource(
-                    id = R.drawable.ic_logo_damyeoom
+                    id =
+                        R.drawable
+                            .ic_logo_damyeoom
                 ),
-                contentDescription = "다녀옴! 로고",
-                modifier = Modifier.height(34.dp)
+                contentDescription =
+                    "다녀옴! 로고",
+                modifier =
+                    Modifier.height(34.dp)
             )
 
             Button(
                 onClick = onAddTravelClick,
-                shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ButtonDark
-                )
+                shape =
+                    RoundedCornerShape(24.dp),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor =
+                            ButtonDark
+                    )
             ) {
                 Text(
                     text = "여행지 추가하기",
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight =
+                        FontWeight.SemiBold
                 )
             }
         }
 
+        // 네이버 지도 영역
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 20.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .clip(
+                    RoundedCornerShape(20.dp)
+                )
         ) {
             EmbeddedNaverMap(
-                modifier = Modifier.fillMaxSize()
+                modifier =
+                    Modifier.fillMaxSize()
             )
         }
 
@@ -138,20 +164,25 @@ fun HomeScreen(
             modifier = Modifier.height(16.dp)
         )
 
+        // 추천 여행지 제목
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement =
+                Arrangement.SpaceBetween,
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
             Text(
-                text = "주변 여행지를 추천해드릴게요!",
+                text =
+                    "주변 여행지를 추천해드릴게요!",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
             )
 
+            // 추천 장소 전체 화면 이동
             Text(
                 text = "더보기",
                 fontSize = 13.sp,
@@ -166,18 +197,24 @@ fun HomeScreen(
             modifier = Modifier.height(12.dp)
         )
 
+        // 추천 장소 카드 목록
         LazyRow(
-            contentPadding = PaddingValues(
-                horizontal = 20.dp
-            ),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.padding(bottom = 20.dp)
+            contentPadding =
+                PaddingValues(
+                    horizontal = 20.dp
+                ),
+            horizontalArrangement =
+                Arrangement.spacedBy(14.dp),
+            modifier =
+                Modifier.padding(bottom = 20.dp)
         ) {
             items(previewPlaces) { place ->
                 PlaceCard(
                     place = place,
                     onClick = {
-                        onPlaceClick(place.placeId)
+                        onPlaceClick(
+                            place.placeId
+                        )
                     }
                 )
             }
@@ -185,61 +222,72 @@ fun HomeScreen(
     }
 }
 
+// 홈 화면에 네이버 지도를 표시
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EmbeddedNaverMap(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner =
+        LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
+    // 네이버 MapView 객체
     val mapView = remember {
         MapView(context)
     }
 
+    // 불러온 네이버 지도 객체
     var naverMapRef by remember {
         mutableStateOf<NaverMap?>(null)
     }
 
+    // 여행 사진 마커 목록
     val photoMarkers = remember {
         mutableStateListOf<Marker>()
     }
 
+    // 선택된 여행 기록
     var selectedRecord by remember {
         mutableStateOf<TravelRecord?>(null)
     }
 
+    // 여행 기록 삭제 상태
     var showDeleteConfirmDialog by remember {
         mutableStateOf(false)
     }
-
     var isDeletingRecord by remember {
         mutableStateOf(false)
     }
 
+    // 장소 검색 상태
     var searchQuery by remember {
         mutableStateOf("")
     }
-
     var isSearching by remember {
         mutableStateOf(false)
     }
-
     var searchErrorMessage by remember {
         mutableStateOf<String?>(null)
     }
 
+    // 검색 지역의 날씨 정보
     var forecasts by remember {
-        mutableStateOf<List<DailyForecast>>(emptyList())
+        mutableStateOf<List<DailyForecast>>(
+            emptyList()
+        )
     }
 
+    // 검색 위치 마커
     val searchMarker = remember {
         mutableStateOf<Marker?>(null)
     }
 
+    // DB에 저장된 여행 기록 마커 갱신
     fun refreshPhotoMarkers() {
-        val map = naverMapRef ?: return
+        val map =
+            naverMapRef ?: return
 
         photoMarkers.forEach { marker ->
             marker.map = null
@@ -254,17 +302,26 @@ private fun EmbeddedNaverMap(
             onRecordClick = { record ->
                 selectedRecord = record
             },
-            onMarkersLoaded = { loadedMarkers ->
-                photoMarkers.addAll(loadedMarkers)
+            onMarkersLoaded = {
+                    loadedMarkers ->
+                photoMarkers.addAll(
+                    loadedMarkers
+                )
             }
         )
     }
 
+    // 검색한 장소의 위치와 날씨 조회
     fun runSearch() {
-        val query = searchQuery.trim()
-        val map = naverMapRef
+        val query =
+            searchQuery.trim()
+        val map =
+            naverMapRef
 
-        if (query.isBlank() || map == null) {
+        if (
+            query.isBlank() ||
+            map == null
+        ) {
             return
         }
 
@@ -274,15 +331,24 @@ private fun EmbeddedNaverMap(
 
         scope.launch {
             try {
+                // 검색어를 좌표로 변환
                 val geoResponse =
-                    GeocodeRetrofitClient.instance.getGeocode(
-                        query = query,
-                        clientId = GeocodeRetrofitClient.CLIENT_ID,
-                        clientSecret = GeocodeRetrofitClient.CLIENT_SECRET
-                    )
+                    GeocodeRetrofitClient
+                        .instance
+                        .getGeocode(
+                            query = query,
+                            clientId =
+                                GeocodeRetrofitClient
+                                    .CLIENT_ID,
+                            clientSecret =
+                                GeocodeRetrofitClient
+                                    .CLIENT_SECRET
+                        )
 
                 val address =
-                    geoResponse.addresses.firstOrNull()
+                    geoResponse
+                        .addresses
+                        .firstOrNull()
 
                 if (address == null) {
                     searchErrorMessage =
@@ -296,25 +362,34 @@ private fun EmbeddedNaverMap(
                 val longitude =
                     address.x.toDoubleOrNull()
 
-                if (latitude == null || longitude == null) {
+                if (
+                    latitude == null ||
+                    longitude == null
+                ) {
                     searchErrorMessage =
                         "위치 좌표를 불러오지 못했어요."
                     return@launch
                 }
 
-                searchMarker.value?.map = null
+                // 기존 검색 마커 제거
+                searchMarker.value?.map =
+                    null
 
-                val marker = Marker().apply {
-                    position = LatLng(
-                        latitude,
-                        longitude
-                    )
-                    captionText = query
-                    this.map = map
-                }
+                // 검색 위치 마커 표시
+                val marker =
+                    Marker().apply {
+                        position = LatLng(
+                            latitude,
+                            longitude
+                        )
+                        captionText = query
+                        this.map = map
+                    }
 
-                searchMarker.value = marker
+                searchMarker.value =
+                    marker
 
+                // 검색 위치로 지도 이동
                 map.moveCamera(
                     CameraUpdate
                         .toCameraPosition(
@@ -331,17 +406,22 @@ private fun EmbeddedNaverMap(
                         )
                 )
 
+                // 검색 지역의 3일 날씨 조회
                 val forecastResponse =
-                    WeatherRetrofitClient.weatherApi.getForecast(
-                        lat = latitude,
-                        lon = longitude,
-                        apiKey = WEATHER_API_KEY
-                    )
+                    WeatherRetrofitClient
+                        .weatherApi
+                        .getForecast(
+                            lat = latitude,
+                            lon = longitude,
+                            apiKey =
+                                WEATHER_API_KEY
+                        )
 
                 forecasts =
-                    forecastResponse.toDailyForecasts(
-                        days = 3
-                    )
+                    forecastResponse
+                        .toDailyForecasts(
+                            days = 3
+                        )
             } catch (e: Exception) {
                 android.util.Log.e(
                     "Weather",
@@ -360,21 +440,29 @@ private fun EmbeddedNaverMap(
     Box(
         modifier = modifier
     ) {
+        // Compose 안에 네이버 MapView 표시
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier.fillMaxSize(),
             factory = {
                 mapView
             }
         )
 
+        // Compose 생명주기와 MapView 연결
         DisposableEffect(
             lifecycleOwner
         ) {
             val observer =
-                LifecycleEventObserver { _, event ->
+                LifecycleEventObserver {
+                        _,
+                        event ->
+
                     when (event) {
                         Lifecycle.Event.ON_CREATE -> {
-                            mapView.onCreate(Bundle())
+                            mapView.onCreate(
+                                Bundle()
+                            )
                         }
 
                         Lifecycle.Event.ON_START -> {
@@ -402,33 +490,41 @@ private fun EmbeddedNaverMap(
                     }
                 }
 
-            lifecycleOwner.lifecycle.addObserver(
-                observer
-            )
+            lifecycleOwner.lifecycle
+                .addObserver(observer)
 
             onDispose {
-                lifecycleOwner.lifecycle.removeObserver(
-                    observer
-                )
+                lifecycleOwner.lifecycle
+                    .removeObserver(observer)
             }
         }
 
+        // 네이버 지도 초기 설정
         LaunchedEffect(mapView) {
             mapView.getMapAsync { naverMap ->
+                // 대한민국 중심으로 카메라 설정
                 naverMap.cameraPosition =
                     CameraPosition(
-                        LatLng(36.5, 127.8),
+                        LatLng(
+                            36.5,
+                            127.8
+                        ),
                         6.5
                     )
 
-                addAttractionMarkers(naverMap)
+                // 주요 관광지 마커 표시
+                addAttractionMarkers(
+                    naverMap
+                )
 
                 naverMapRef = naverMap
 
+                // 저장된 여행 기록 마커 표시
                 refreshPhotoMarkers()
             }
         }
 
+        // 지도 위 검색창
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -438,7 +534,9 @@ private fun EmbeddedNaverMap(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(
-                        RoundedCornerShape(16.dp)
+                        RoundedCornerShape(
+                            16.dp
+                        )
                     )
                     .background(Color.White)
                     .padding(
@@ -459,20 +557,23 @@ private fun EmbeddedNaverMap(
                         )
                     },
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier =
+                        Modifier.weight(1f),
                     colors =
-                        OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor =
-                                Color.Transparent,
-                            focusedBorderColor =
-                                Color.Transparent,
-                            unfocusedContainerColor =
-                                Color.White,
-                            focusedContainerColor =
-                                Color.White
-                        )
+                        OutlinedTextFieldDefaults
+                            .colors(
+                                unfocusedBorderColor =
+                                    Color.Transparent,
+                                focusedBorderColor =
+                                    Color.Transparent,
+                                unfocusedContainerColor =
+                                    Color.White,
+                                focusedContainerColor =
+                                    Color.White
+                            )
                 )
 
+                // 장소 검색 버튼
                 IconButton(
                     onClick = {
                         runSearch()
@@ -496,7 +597,9 @@ private fun EmbeddedNaverMap(
                 }
             }
 
-            searchErrorMessage?.let { message ->
+            // 검색 오류 메시지
+            searchErrorMessage?.let {
+                    message ->
                 Spacer(
                     modifier =
                         Modifier.height(8.dp)
@@ -524,6 +627,7 @@ private fun EmbeddedNaverMap(
             }
         }
 
+        // 검색 지역의 3일 날씨 표시
         if (forecasts.isNotEmpty()) {
             Row(
                 modifier = Modifier
@@ -536,7 +640,11 @@ private fun EmbeddedNaverMap(
                     Arrangement.spacedBy(8.dp)
             ) {
                 val labels =
-                    listOf("오늘", "내일", "모레")
+                    listOf(
+                        "오늘",
+                        "내일",
+                        "모레"
+                    )
 
                 forecasts.forEachIndexed {
                         index,
@@ -546,7 +654,9 @@ private fun EmbeddedNaverMap(
                         modifier =
                             Modifier.weight(1f),
                         label =
-                            labels.getOrElse(index) {
+                            labels.getOrElse(
+                                index
+                            ) {
                                 forecast.date
                             },
                         forecast = forecast
@@ -556,33 +666,40 @@ private fun EmbeddedNaverMap(
         }
     }
 
+    // 여행 기록 마커 선택 시 상세창 표시
     selectedRecord?.let { record ->
         ModalBottomSheet(
             onDismissRequest = {
                 if (!isDeletingRecord) {
                     selectedRecord = null
-                    showDeleteConfirmDialog = false
+                    showDeleteConfirmDialog =
+                        false
                 }
             },
             containerColor = BgLight,
             dragHandle = {
-                BottomSheetDefaults.DragHandle()
+                BottomSheetDefaults
+                    .DragHandle()
             }
         ) {
             TravelRecordBottomSheet(
                 record = record,
-                isDeleting = isDeletingRecord,
+                isDeleting =
+                    isDeletingRecord,
                 onDeleteClick = {
-                    showDeleteConfirmDialog = true
+                    showDeleteConfirmDialog =
+                        true
                 },
                 onCloseClick = {
                     selectedRecord = null
-                    showDeleteConfirmDialog = false
+                    showDeleteConfirmDialog =
+                        false
                 }
             )
         }
     }
 
+    // 여행 기록 삭제 확인창
     if (showDeleteConfirmDialog) {
         val recordToDelete =
             selectedRecord
@@ -590,13 +707,16 @@ private fun EmbeddedNaverMap(
         AlertDialog(
             onDismissRequest = {
                 if (!isDeletingRecord) {
-                    showDeleteConfirmDialog = false
+                    showDeleteConfirmDialog =
+                        false
                 }
             },
             title = {
                 Text(
-                    text = "여행 기록을 삭제할까요?",
-                    fontWeight = FontWeight.Bold
+                    text =
+                        "여행 기록을 삭제할까요?",
+                    fontWeight =
+                        FontWeight.Bold
                 )
             },
             text = {
@@ -607,7 +727,8 @@ private fun EmbeddedNaverMap(
                             ?.takeIf {
                                 it.isNotBlank()
                             }
-                            ?: recordToDelete?.region
+                            ?: recordToDelete
+                                ?.region
                             ?: "선택한 여행 기록"
 
                     Text(
@@ -634,7 +755,8 @@ private fun EmbeddedNaverMap(
                         showDeleteConfirmDialog =
                             false
                     },
-                    enabled = !isDeletingRecord
+                    enabled =
+                        !isDeletingRecord
                 ) {
                     Text("취소")
                 }
@@ -654,6 +776,7 @@ private fun EmbeddedNaverMap(
 
                         scope.launch {
                             try {
+                                // 여행 기록 DB 삭제
                                 withContext(
                                     Dispatchers.IO
                                 ) {
@@ -669,11 +792,14 @@ private fun EmbeddedNaverMap(
 
                                 showDeleteConfirmDialog =
                                     false
+                                selectedRecord =
+                                    null
 
-                                selectedRecord = null
-
+                                // 지도 마커 다시 조회
                                 refreshPhotoMarkers()
-                            } catch (e: Exception) {
+                            } catch (
+                                e: Exception
+                            ) {
                                 android.util.Log.e(
                                     "TravelDelete",
                                     "여행 기록 삭제 실패",
@@ -685,7 +811,8 @@ private fun EmbeddedNaverMap(
                             }
                         }
                     },
-                    enabled = !isDeletingRecord
+                    enabled =
+                        !isDeletingRecord
                 ) {
                     if (isDeletingRecord) {
                         CircularProgressIndicator(
@@ -707,6 +834,7 @@ private fun EmbeddedNaverMap(
     }
 }
 
+// 선택한 여행 기록의 상세 정보창
 @Composable
 private fun TravelRecordBottomSheet(
     record: TravelRecord,
@@ -714,10 +842,12 @@ private fun TravelRecordBottomSheet(
     onDeleteClick: () -> Unit,
     onCloseClick: () -> Unit
 ) {
+    // 저장된 첫 번째 사진 가져오기
     val firstPhoto =
         remember(record.imageUri) {
-            decodePhotos(record.imageUri)
-                .firstOrNull()
+            decodePhotos(
+                record.imageUri
+            ).firstOrNull()
         }
 
     Column(
@@ -731,6 +861,7 @@ private fun TravelRecordBottomSheet(
             verticalAlignment =
                 Alignment.Top
         ) {
+            // 여행 대표 사진
             if (!firstPhoto.isNullOrBlank()) {
                 AsyncImage(
                     model =
@@ -754,16 +885,19 @@ private fun TravelRecordBottomSheet(
                 )
             }
 
+            // 장소명과 방문 날짜
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text =
-                        record.placeName.ifBlank {
-                            record.region
-                        },
+                        record.placeName
+                            .ifBlank {
+                                record.region
+                            },
                     fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight =
+                        FontWeight.Bold,
                     color = TextPrimary
                 )
 
@@ -795,6 +929,7 @@ private fun TravelRecordBottomSheet(
             modifier = Modifier.height(8.dp)
         )
 
+        // 여행 메모
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -818,18 +953,22 @@ private fun TravelRecordBottomSheet(
             modifier = Modifier.height(20.dp)
         )
 
+        // 여행 기록 삭제 버튼
         Button(
             onClick = onDeleteClick,
             enabled = !isDeleting,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape =
+                RoundedCornerShape(16.dp),
             colors =
                 ButtonDefaults.buttonColors(
                     containerColor = PinRed,
                     disabledContainerColor =
-                        PinRed.copy(alpha = 0.5f)
+                        PinRed.copy(
+                            alpha = 0.5f
+                        )
                 )
         ) {
             Icon(
@@ -839,14 +978,14 @@ private fun TravelRecordBottomSheet(
             )
 
             Spacer(
-                modifier =
-                    Modifier.width(8.dp)
+                modifier = Modifier.width(8.dp)
             )
 
             Text(
                 text = "여행 기록 삭제",
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight =
+                    FontWeight.Bold
             )
         }
 
@@ -854,10 +993,12 @@ private fun TravelRecordBottomSheet(
             modifier = Modifier.height(8.dp)
         )
 
+        // 상세창 닫기
         TextButton(
             onClick = onCloseClick,
             enabled = !isDeleting,
-            modifier = Modifier.fillMaxWidth()
+            modifier =
+                Modifier.fillMaxWidth()
         ) {
             Text(
                 text = "닫기",
@@ -867,6 +1008,7 @@ private fun TravelRecordBottomSheet(
     }
 }
 
+// 날짜별 날씨 카드
 @Composable
 private fun WeatherDayCard(
     modifier: Modifier = Modifier,
@@ -913,6 +1055,7 @@ private fun WeatherDayCard(
     }
 }
 
+// 홈 화면 추천 장소 카드
 @Composable
 private fun PlaceCard(
     place: PlaceEntity,
@@ -920,9 +1063,11 @@ private fun PlaceCard(
 ) {
     val context = LocalContext.current
 
+    // 장소별 추가 정보
     val extra =
         placeExtras[place.placeId]
 
+    // 인터넷 또는 로컬 이미지 불러오기
     val imageModel =
         resolvePlaceImage(
             context,
@@ -945,6 +1090,7 @@ private fun PlaceCard(
                 )
                 .background(CardGray)
         ) {
+            // 장소 대표 이미지
             if (imageModel != null) {
                 AsyncImage(
                     model = imageModel,
@@ -957,6 +1103,7 @@ private fun PlaceCard(
                 )
             }
 
+            // 지역 및 카테고리 표시
             Row(
                 modifier =
                     Modifier.padding(10.dp)
@@ -1020,6 +1167,7 @@ private fun PlaceCard(
             modifier = Modifier.height(8.dp)
         )
 
+        // 장소 이름
         Text(
             text = place.name,
             fontSize = 14.sp,

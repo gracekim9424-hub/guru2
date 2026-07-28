@@ -2,13 +2,26 @@ package com.damyeoom.app.data
 
 import android.content.Context
 
-// PlaceEntity.imageUrl 이 실제 URL("http...")이면 그대로 반환,
-// 로컬 drawable 파일명("place_xxx")이면 리소스 ID를 찾아서 반환합니다.
-// 둘 중 뭘 쓸지 몰라도 이 함수 하나로 다 처리됩니다.
-fun resolvePlaceImage(context: Context, imageUrl: String?): Any? {
-    if (imageUrl.isNullOrBlank()) return null
-    if (imageUrl.startsWith("http")) return imageUrl
+// 장소 이미지 URL 또는 로컬 drawable 리소스를 반환
+fun resolvePlaceImage(
+    context: Context,
+    imageUrl: String?
+): Any? {
 
-    val resId = context.resources.getIdentifier(imageUrl, "drawable", context.packageName)
+    // 이미지 정보가 없으면 null 반환
+    if (imageUrl.isNullOrBlank()) return null
+
+    // 인터넷 이미지 주소이면 그대로 반환
+    if (imageUrl.startsWith("http")) {
+        return imageUrl
+    }
+
+    // 로컬 drawable 이름을 리소스 ID로 변환
+    val resId = context.resources.getIdentifier(
+        imageUrl,
+        "drawable",
+        context.packageName
+    )
+
     return if (resId != 0) resId else null
 }

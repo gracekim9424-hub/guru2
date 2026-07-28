@@ -3,28 +3,33 @@ package com.damyeoom.app.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+// 여행 기록을 저장하는 테이블
 @Entity(tableName = "travel_records")
 data class TravelRecord(
+
+    // 여행 기록의 고유 ID
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    // 이 여행 기록을 작성한 사용자
+    // 기록을 작성한 사용자 ID
     val userId: Int,
-    // 서울, 경기, 부산처럼 시·도 단위
+
+    // 여행 지역
     val region: String,
 
-    // 예: 2026-07-22
+    // 방문 날짜
     val visitDate: String,
 
     // 여행 메모
     val memo: String = "",
 
-    val placeName: String = "",   // TravelRecord에 추가 필요
+    // 방문 장소 이름
+    val placeName: String = "",
 
-    // 사진 한 장의 URI
+    // 저장한 사진의 URI
     val imageUri: String? = null,
 
-    // 지도 위치
+    // 장소의 지도 좌표
     val latitude: Double? = null,
     val longitude: Double? = null,
 

@@ -23,46 +23,92 @@ import com.damyeoom.app.entity.User
 import com.damyeoom.app.ui.theme.*
 import kotlinx.coroutines.launch
 
+// 새로운 사용자의 회원가입을 처리하는 화면
 @Composable
 fun SignUpScreen(
     onSignUpComplete: () -> Unit
 ) {
+    // Room DB와 코루틴 설정
     val context = LocalContext.current
-    val db = remember { AppDatabase.getDatabase(context) }
+    val db = remember {
+        AppDatabase.getDatabase(context)
+    }
     val scope = rememberCoroutineScope()
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordConfirm by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // 회원가입 입력값 상태
+    var email by remember {
+        mutableStateOf("")
+    }
+    var password by remember {
+        mutableStateOf("")
+    }
+    var passwordConfirm by remember {
+        mutableStateOf("")
+    }
+    var errorMessage by remember {
+        mutableStateOf<String?>(null)
+    }
 
-    val isFormFilled = email.isNotBlank() && password.isNotBlank() && passwordConfirm.isNotBlank()
+    // 모든 입력칸 작성 여부 확인
+    val isFormFilled =
+        email.isNotBlank() &&
+                password.isNotBlank() &&
+                passwordConfirm.isNotBlank()
 
     Column(
-        modifier = Modifier.fillMaxSize().background(BgLight).padding(horizontal = 24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgLight)
+            .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(72.dp))
 
+        // 앱 로고
         Image(
-            painter = painterResource(id = R.drawable.ic_logo_damyeoom),
+            painter = painterResource(
+                id = R.drawable.ic_logo_damyeoom
+            ),
             contentDescription = "다녀옴! 로고",
             modifier = Modifier.height(40.dp)
         )
+
         Spacer(modifier = Modifier.height(10.dp))
-        Text(text = "나만의 국내 여행 지도", fontSize = 14.sp, color = TextSecondary)
+
+        Text(
+            text = "나만의 국내 여행 지도",
+            fontSize = 14.sp,
+            color = TextSecondary
+        )
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
-            Text(text = "이메일", fontSize = 14.sp, color = TextSecondary)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
+        ) {
+            // 이메일 입력
+            Text(
+                text = "이메일",
+                fontSize = 14.sp,
+                color = TextSecondary
+            )
+
             Spacer(modifier = Modifier.height(6.dp))
+
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it; errorMessage = null },
-                placeholder = { Text("exam@gmail.com") },
+                onValueChange = {
+                    email = it
+                    errorMessage = null
+                },
+                placeholder = {
+                    Text("exam@gmail.com")
+                },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email
+                ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -75,15 +121,30 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text(text = "비밀번호", fontSize = 14.sp, color = TextSecondary)
+            // 비밀번호 입력
+            Text(
+                text = "비밀번호",
+                fontSize = 14.sp,
+                color = TextSecondary
+            )
+
             Spacer(modifier = Modifier.height(6.dp))
+
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it; errorMessage = null },
-                placeholder = { Text("비밀번호를 입력하세요") },
+                onValueChange = {
+                    password = it
+                    errorMessage = null
+                },
+                placeholder = {
+                    Text("비밀번호를 입력하세요")
+                },
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation =
+                    PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password
+                ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -96,15 +157,30 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text(text = "비밀번호 확인", fontSize = 14.sp, color = TextSecondary)
+            // 비밀번호 확인
+            Text(
+                text = "비밀번호 확인",
+                fontSize = 14.sp,
+                color = TextSecondary
+            )
+
             Spacer(modifier = Modifier.height(6.dp))
+
             OutlinedTextField(
                 value = passwordConfirm,
-                onValueChange = { passwordConfirm = it; errorMessage = null },
-                placeholder = { Text("비밀번호를 다시 입력하세요") },
+                onValueChange = {
+                    passwordConfirm = it
+                    errorMessage = null
+                },
+                placeholder = {
+                    Text("비밀번호를 다시 입력하세요")
+                },
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation =
+                    PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password
+                ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -115,38 +191,67 @@ fun SignUpScreen(
                 )
             )
 
+            // 회원가입 오류 메시지
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(text = errorMessage ?: "", fontSize = 12.sp, color = ErrorRed)
+
+                Text(
+                    text = errorMessage ?: "",
+                    fontSize = 12.sp,
+                    color = ErrorRed
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // 회원가입 처리 버튼
             Button(
                 onClick = {
+                    // 비밀번호 일치 여부 확인
                     if (password != passwordConfirm) {
-                        errorMessage = "비밀번호가 일치하지 않습니다."
+                        errorMessage =
+                            "비밀번호가 일치하지 않습니다."
                         return@Button
                     }
+
                     scope.launch {
-                        val existing = db.userDao().getUserByEmail(email.trim())
+                        // 이메일 중복 확인
+                        val existing =
+                            db.userDao()
+                                .getUserByEmail(email.trim())
+
                         if (existing != null) {
-                            errorMessage = "이미 가입된 이메일입니다."
+                            errorMessage =
+                                "이미 가입된 이메일입니다."
                         } else {
-                            db.userDao().insert(User(email = email.trim(), password = password))
+                            // 새로운 사용자 DB 저장
+                            db.userDao().insert(
+                                User(
+                                    email = email.trim(),
+                                    password = password
+                                )
+                            )
+
                             onSignUpComplete()
                         }
                     }
                 },
                 enabled = isFormFilled,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
                 shape = RoundedCornerShape(26.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ButtonDark,
                     disabledContainerColor = ButtonDisabled
                 )
             ) {
-                Text("가입하기", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text(
+                    text = "가입하기",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
             }
         }
     }

@@ -24,15 +24,22 @@ import com.damyeoom.app.data.resolvePlaceImage
 import com.damyeoom.app.entity.PlaceEntity
 import com.damyeoom.app.ui.theme.*
 
+// 선택한 장소의 상세 정보를 보여주는 화면
 @Composable
 fun PlaceDetailScreen(
     placeId: Int,
     onBackClick: () -> Unit = {}
 ) {
+    // Room DB 설정
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
-    var place by remember { mutableStateOf<PlaceEntity?>(null) }
 
+    // 조회한 장소 정보
+    var place by remember {
+        mutableStateOf<PlaceEntity?>(null)
+    }
+
+    // 장소 ID에 해당하는 정보 조회
     LaunchedEffect(placeId) {
         place = db.placeDao().getPlaceById(placeId)
     }
@@ -47,25 +54,36 @@ fun PlaceDetailScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
+        // 뒤로가기 아이콘
         Icon(
             Icons.Filled.ArrowBack,
             contentDescription = "뒤로가기",
             tint = TextPrimary,
-            modifier = Modifier.size(24.dp).clip(RoundedCornerShape(12.dp))
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
         )
 
+        // 장소 정보 로딩 표시
         if (current == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = ButtonDark)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = ButtonDark
+                )
             }
+
             return@Column
         }
 
+        // 장소별 추가 정보
         val extra = placeExtras[current.placeId]
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 장소명 (더 크게)
+        // 장소 이름
         Text(
             text = current.name,
             fontSize = 28.sp,
@@ -75,33 +93,62 @@ fun PlaceDetailScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 지역/카테고리 칩
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(current.region, current.category).forEach { tag ->
+        // 지역과 카테고리 표시
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            listOf(
+                current.region,
+                current.category
+            ).forEach { tag ->
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .background(CardGray)
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                        .padding(
+                            horizontal = 10.dp,
+                            vertical = 5.dp
+                        )
                 ) {
-                    Text(tag, fontSize = 12.sp, color = TextSecondary)
+                    Text(
+                        text = tag,
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 주소
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Place, contentDescription = null, tint = PinRed, modifier = Modifier.size(18.dp))
+        // 장소 주소 표시
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.Place,
+                contentDescription = null,
+                tint = PinRed,
+                modifier = Modifier.size(18.dp)
+            )
+
             Spacer(modifier = Modifier.width(4.dp))
-            Text(current.address, fontSize = 14.sp, color = TextSecondary)
+
+            Text(
+                text = current.address,
+                fontSize = 14.sp,
+                color = TextSecondary
+            )
         }
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // 대표 사진 (더 크게)
-        val imageModel = resolvePlaceImage(context, extra?.detailImageRes ?: current.imageUrl)
+        // 장소 대표 이미지 불러오기
+        val imageModel = resolvePlaceImage(
+            context,
+            extra?.detailImageRes ?: current.imageUrl
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -121,7 +168,7 @@ fun PlaceDetailScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 설명 (글자 크게, 줄 제한 없이 전체 표시)
+        // 장소 설명
         Text(
             text = current.description,
             fontSize = 16.sp,
@@ -131,20 +178,36 @@ fun PlaceDetailScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Divider(color = Divider, thickness = 1.dp)
+        Divider(
+            color = Divider,
+            thickness = 1.dp
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 부가 설명
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // 운영시간, 전화번호, 추천 대상 표시
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             extra?.openingHours?.let {
-                InfoRow(label = "운영시간", value = it)
+                InfoRow(
+                    label = "운영시간",
+                    value = it
+                )
             }
+
             extra?.phoneNumber?.let {
-                InfoRow(label = "전화번호", value = it)
+                InfoRow(
+                    label = "전화번호",
+                    value = it
+                )
             }
+
             extra?.recommendedFor?.let {
-                InfoRow(label = "추천", value = it)
+                InfoRow(
+                    label = "추천",
+                    value = it
+                )
             }
         }
 
@@ -152,8 +215,12 @@ fun PlaceDetailScreen(
     }
 }
 
+// 장소 부가 정보를 한 줄로 표시
 @Composable
-private fun InfoRow(label: String, value: String) {
+private fun InfoRow(
+    label: String,
+    value: String
+) {
     Row {
         Text(
             text = label,
@@ -162,6 +229,7 @@ private fun InfoRow(label: String, value: String) {
             fontWeight = FontWeight.Medium,
             modifier = Modifier.width(76.dp)
         )
+
         Text(
             text = value,
             fontSize = 13.sp,
